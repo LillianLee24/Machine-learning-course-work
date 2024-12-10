@@ -1,0 +1,126 @@
+from PyQt5.QtWidgets import (
+    QDialog, QVBoxLayout, QLabel, QCheckBox, QComboBox, QPushButton, QHBoxLayout, QLineEdit
+)
+from PyQt5.QtCore import Qt
+
+class SettingsWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.main_window = parent  # Сохраняем ссылку на главное окно
+
+        self.setWindowTitle("Settings")
+        self.setGeometry(300, 200, 600, 500)
+        self.setStyleSheet("background-color: #f7f7f7;")
+
+        self.layout = QVBoxLayout()
+
+        # Back button
+        self.back_button = QPushButton("←")  # Small "Back" button
+        self.back_button.setStyleSheet(
+            "background-color: transparent; color: #4CAF50; border: none; font-size: 18px;"
+        )
+        self.back_button.clicked.connect(self.go_back)
+        self.layout.addWidget(self.back_button)
+
+        # Header
+        self.title_label = QLabel("Application Settings")
+        self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setStyleSheet("font-size: 28px; font-weight: bold; padding: 20px; color: #333333;")
+        self.layout.addWidget(self.title_label)
+
+        # Account Management Section
+        self.account_section_label = QLabel("Account Management:")
+        self.account_section_label.setStyleSheet("font-size: 20px; font-weight: bold; margin-top: 20px; color: #555555;")
+        self.layout.addWidget(self.account_section_label)
+
+        self.username_label = QLabel("Username:")
+        self.username_label.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.username_label)
+        self.username_input = QLineEdit()
+        self.username_input.setPlaceholderText("Enter new username")
+        self.layout.addWidget(self.username_input)
+
+        self.password_label = QLabel("Change Password:")
+        self.password_label.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.password_label)
+        self.password_input = QLineEdit()
+        self.password_input.setPlaceholderText("Enter new password")
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.layout.addWidget(self.password_input)
+
+        # Theme Section
+        self.theme_label = QLabel("Select Theme:")
+        self.theme_label.setStyleSheet("font-size: 20px; font-weight: bold; margin-top: 20px; color: #555555;")
+        self.layout.addWidget(self.theme_label)
+
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItem("Light")
+        self.theme_combo.addItem("Dark")
+        self.theme_combo.currentIndexChanged.connect(self.change_theme)
+        self.theme_combo.setStyleSheet("font-size: 18px;")
+        self.layout.addWidget(self.theme_combo)
+
+        # Notifications Section
+        self.notifications_checkbox = QCheckBox("Enable Notifications")
+        self.notifications_checkbox.setChecked(True)
+        self.notifications_checkbox.setStyleSheet("font-size: 18px; margin-top: 10px;")
+        self.layout.addWidget(self.notifications_checkbox)
+
+        # Buttons Section
+        self.buttons_layout = QHBoxLayout()
+
+        self.apply_button = QPushButton("Apply")
+        self.apply_button.setStyleSheet(
+            "background-color: #4CAF50; color: white; font-size: 18px; padding: 12px; border-radius: 5px;"
+        )
+        self.apply_button.clicked.connect(self.apply_settings)
+        self.buttons_layout.addWidget(self.apply_button)
+
+        self.logout_button = QPushButton("Log Out")
+        self.logout_button.setStyleSheet(
+            "background-color: #f44336; color: white; font-size: 18px; padding: 12px; border-radius: 5px;"
+        )
+        self.logout_button.clicked.connect(self.logout)
+        self.buttons_layout.addWidget(self.logout_button)
+
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.setStyleSheet(
+            "background-color: #e7e7e7; color: black; font-size: 18px; padding: 12px; border-radius: 5px;"
+        )
+        self.cancel_button.clicked.connect(self.close)
+        self.buttons_layout.addWidget(self.cancel_button)
+
+        self.layout.addLayout(self.buttons_layout)
+
+        self.setLayout(self.layout)
+
+    def go_back(self):
+        self.close()  # Закрываем окно настроек
+        if self.main_window:  # Убедимся, что главное окно существует
+            self.main_window.show()  # Показываем главное окно
+
+
+    def change_theme(self):
+        if self.theme_combo.currentIndex() == 0:
+            self.setStyleSheet("background-color: #f7f7f7; color: black;")
+        else:
+            self.setStyleSheet("background-color: #333333; color: white;")
+
+    def apply_settings(self):
+        username = self.username_input.text()
+        password = self.password_input.text()
+        notifications_enabled = self.notifications_checkbox.isChecked()
+        selected_theme = self.theme_combo.currentText()
+
+        # Logic to save settings
+        print(f"Username: {username}")
+        print(f"Password: {'*' * len(password) if password else 'Not Changed'}")
+        print(f"Notifications Enabled: {notifications_enabled}")
+        print(f"Theme: {selected_theme}")
+
+        self.close()
+
+    def logout(self):
+        # Logic for logging out
+        print("User logged out.")
+        self.close()
