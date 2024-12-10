@@ -1,0 +1,421 @@
+import sys
+import os
+import logging
+from PyQt5 import QtWidgets, QtGui, QtCore
+from openpyxl import load_workbook, Workbook
+from mainwindowcode import MainWindow
+import pyodbc
+
+
+
+NEW_EXCEL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "userdata.xlsx")
+
+logging.basicConfig(level=logging.DEBUG, filename='app_log.txt', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
+
+def get_connection():
+    return pyodbc.connect(
+        'Driver={ODBC Driver 17 for SQL Server};'
+        'Server=ARUZHAN_B\SQLEXPRESS01;'
+        'Database=doctors;'
+        'Trusted_Connection=yes;'
+    )
+
+
+class SplashScreen(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        try:
+            self.setWindowTitle("Loading")
+            self.setGeometry(300, 300, 500, 400)
+            layout = QtWidgets.QVBoxLayout()
+
+            background_label = QtWidgets.QLabel(self)
+            pixmap = QtGui.QPixmap("coursework.png")  # Путь к картинке
+            if not pixmap.isNull():
+                background_label.setPixmap(pixmap)
+                background_label.setScaledContents(True)
+                layout.addWidget(background_label)
+            else:
+                QtWidgets.QMessageBox.warning(self, "Ошибка", "Изображение 'coursework.png' не найдено.")
+
+            self.progress_bar = QtWidgets.QProgressBar(self)
+            self.progress_bar.setValue(0)
+            layout.addWidget(self.progress_bar)
+            self.setLayout(layout)
+
+            # Таймер для обновления прогресс-бара
+            self.timer = QtCore.QTimer(self)
+            self.timer.timeout.connect(self.update_progress)
+            self.timer.start(30)  # Обновляем каждую 30-ю миллисекунду
+        except Exception as e:
+            logging.error(f"Ошибка в SplashScreen: {str(e)}")
+            QtWidgets.QMessageBox.warning(self, "Ошибка", f"Ошибка: {str(e)}")
+
+    def update_progress(self):
+        try:
+            value = self.progress_bar.value()
+            if value < 100:
+                self.progress_bar.setValue(value + 1)
+            else:
+                self.timer.stop()
+                self.open_login_window()  # После завершения загрузки открываем окно для входа
+        except Exception as e:
+            logging.error(f"Ошибка при обновлении прогресса: {str(e)}")
+
+    def open_login_window(self):
+        try:
+            self.close()  # Закрываем экран загрузки
+            self.login_app = LoginApp()  # Создаем и показываем окно входа
+            self.login_app.show()
+        except Exception as e:
+            logging.error(f"Ошибка при открытии окна входа: {str(e)}")
+
+
+class LoginApp(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Log in")
+        self.setGeometry(300, 300, 600, 500)
+        self.initUI()
+
+    def initUI(self):
+        layout = QtWidgets.QVBoxLayout(self)
+
+        # Логотип сверху
+        logo_label = QtWidgets.QLabel(self)
+        logo_pixmap = QtGui.QPixmap("pic3.png")  # Измените на свой файл логотипа
+        if not logo_pixmap.isNull():
+            logo_label.setPixmap(logo_pixmap)
+            logo_label.setAlignment(QtCore.Qt.AlignCenter)
+            layout.addWidget(logo_label)
+        else:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Логотип 'pic3.png' не найден.")
+
+        # Заголовок
+        title = QtWidgets.QLabel("Log in to the system", self)
+        title.setAlignment(QtCore.Qt.AlignCenter)
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #4CAF50;")
+        layout.addWidget(title)
+
+        # Поля для ввода данных
+        self.iin = QtWidgets.QLineEdit(self)
+        self.iin.setPlaceholderText("IIN")
+        self.iin.setStyleSheet("font-size: 18px; padding: 10px; border: 2px solid #4CAF50; border-radius: 5px;")
+        
+        self.password = QtWidgets.QLineEdit(self)
+        self.password.setPlaceholderText("Password")
+        self.password.setStyleSheet("font-size: 18px; padding: 10px; border: 2px solid #4CAF50; border-radius: 5px;")
+        self.password.setEchoMode(QtWidgets.QLineEdit.Password)
+
+        # Кнопки
+        self.login_button = QtWidgets.QPushButton("Log in", self)
+        self.login_button.setStyleSheet(""" 
+            font-size: 18px; 
+            padding: 12px; 
+            background-color: #4CAF50; 
+            color: white; 
+            border-radius: 5px;
+        """)
+        self.login_button.clicked.connect(self.login_user)
+
+        self.register_button = QtWidgets.QPushButton("Registration", self)
+        self.register_button.setStyleSheet(""" 
+            font-size: 18px; 
+            padding: 12px; 
+            background-color: #FF9800; 
+            color: white; 
+            border-radius: 5px;
+        """)
+        self.register_button.clicked.connect(self.open_registration)
+
+        layout.addWidget(self.iin)
+        layout.addWidget(self.password)
+        layout.addWidget(self.login_button)
+        layout.addWidget(self.register_button)
+
+        self.setLayout(layout)
+
+    def login_user(self):
+        try:
+            iin = self.iin.text()
+            password = self.password.text()
+
+            # Проверка существования пользователя
+            if not self.check_user_exists(iin):
+                QtWidgets.QMessageBox.warning(self, "Error", "You are not registered.")
+                return
+            if not self.check_password(iin, password):
+                QtWidgets.QMessageBox.warning(self, "Error", "Invalid password.")
+                return
+
+            # Определение роли пользователя
+            user_role = self.get_user_role(iin)
+            print(f"User Role: {user_role}")  # Добавляем вывод роли
+
+            # Открытие главного окна в зависимости от роли
+            if user_role in ['admin', 'user']:
+                print("Главное окно должно открыться.")
+                self.main_window = MainWindow(user_role=user_role)
+                self.main_window.show()  # Показываем главное окно
+            elif user_role == 'user':
+                print("Личный кабинет пациента должен открыться.")
+                self.patient_dashboard = PatientDashboard(user_iin=iin)  # Передаем ИИН в личный кабинет
+                self.patient_dashboard.show()  # Показываем личный кабинет пациента
+
+            else:
+                QtWidgets.QMessageBox.warning(self, "Error", "Unknown role.")
+                print("The main window could not be opened. The role is not defined.")
+
+            self.close()
+
+        except Exception as e:
+            logging.error(f"User login error: {str(e)}")
+
+
+
+
+
+
+
+    def get_user_role(self, iin):
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
+            query = "SELECT position FROM Users WHERE IIN = ?"
+            cursor.execute(query, (iin,))
+            result = cursor.fetchone()
+            connection.close()
+
+            if result:
+                return result[0]  # Роль из базы данных
+
+            # Проверка в Excel
+            if os.path.exists(NEW_EXCEL_FILE):
+                wb = load_workbook(NEW_EXCEL_FILE)
+                sheet = wb.active
+                for row in sheet.iter_rows(min_row=2, values_only=True):
+                    if str(row[2]) == str(iin):  # ИИН в 3-м столбце
+                        return "user"
+
+            return "guest"  # По умолчанию
+        except Exception as e:
+            logging.error(f"Error in defining the user role: {str(e)}")
+            return "guest"
+
+
+    def check_user_exists(self, iin):
+        try:
+            # Сначала проверяем в базе данных
+            connection = get_connection()
+            cursor = connection.cursor()
+            query = "SELECT COUNT(*) FROM Users WHERE IIN = ?"
+            cursor.execute(query, (iin,))
+            result = cursor.fetchone()
+            connection.close()
+
+            if result[0] > 0:
+                return True  # Если пользователь найден в базе данных
+
+            # Проверка в Excel
+            if os.path.exists(NEW_EXCEL_FILE):
+                wb = load_workbook(NEW_EXCEL_FILE)
+                sheet = wb.active
+                for row in sheet.iter_rows(min_row=2, values_only=True):
+                    if row[2] == iin:  # ИИН хранится в третьем столбце
+                        return True
+
+            return False
+        except Exception as e:
+            logging.error(f"Error checking the user's existence: {str(e)}")
+            return False
+
+    def check_password(self, iin, password):
+        try:
+            # Сначала проверяем в базе данных
+            connection = get_connection()
+            cursor = connection.cursor()
+            query = "SELECT password FROM Users WHERE IIN = ?"
+            cursor.execute(query, (iin,))
+            result = cursor.fetchone()
+            connection.close()
+
+            if result and result[0].strip() == password:
+                return True
+
+            # Если не найдено в базе данных, проверяем в Excel
+            if os.path.exists(NEW_EXCEL_FILE):
+                wb = load_workbook(NEW_EXCEL_FILE)
+                sheet = wb.active
+                for row in sheet.iter_rows(min_row=2, values_only=True):
+                    if row[2] == iin and row[4].strip() == password:  # ИИН в 3-м столбце, пароль в 5-м
+                        return True
+            return False
+        except Exception as e:
+            logging.error(f"Error verifying the user's password:{str(e)}")
+            return False
+
+
+
+    def open_registration(self):
+        try:
+            self.close()
+            self.registration_app = RegistrationApp()
+            self.registration_app.show()
+        except Exception as e:
+            logging.error(f"Error opening registration: {str(e)}")
+
+    def open_diagnosis(self):
+        try:
+            self.diagnostic_window = GraphWindow(self)  # передаем родительский объект
+            self.diagnostic_window.show()  # Показываем окно диагностики
+        except Exception as e:
+            logging.error(f"Ошибка при открытии окна диагностики: {str(e)}")
+
+
+class RegistrationApp(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Registration")
+        self.setGeometry(300, 300, 600, 600)
+        self.initUI()
+
+    def initUI(self):
+        try:
+            layout = QtWidgets.QVBoxLayout(self)
+
+            # Поля для регистрации
+            self.first_name = QtWidgets.QLineEdit(self)
+            self.first_name.setPlaceholderText("Name")
+            self.first_name.setStyleSheet("font-size: 18px; padding: 10px; border: 2px solid #4CAF50; border-radius: 5px;")
+            
+            self.last_name = QtWidgets.QLineEdit(self)
+            self.last_name.setPlaceholderText("First name")
+            self.last_name.setStyleSheet("font-size: 18px; padding: 10px; border: 2px solid #4CAF50; border-radius: 5px;")
+            
+            self.iin = QtWidgets.QLineEdit(self)
+            self.iin.setPlaceholderText("IIN(XXXX XXXX XXXX)")
+            self.iin.setStyleSheet("font-size: 18px; padding: 10px; border: 2px solid #4CAF50; border-radius: 5px;")
+            
+            self.phone = QtWidgets.QLineEdit(self)
+            self.phone.setPlaceholderText("Phone number (+7 XXX XXX XX XX)")
+            self.phone.setStyleSheet("font-size: 18px; padding: 10px; border: 2px solid #4CAF50; border-radius: 5px;")
+            
+            self.password = QtWidgets.QLineEdit(self)
+            self.password.setPlaceholderText("password")
+            self.password.setStyleSheet("font-size: 18px; padding: 10px; border: 2px solid #4CAF50; border-radius: 5px;")
+            self.password.setEchoMode(QtWidgets.QLineEdit.Password)
+
+            self.submit_button = QtWidgets.QPushButton("Register", self)
+            self.submit_button.setStyleSheet("""
+                font-size: 18px; 
+                padding: 12px; 
+                background-color: #FF9800; 
+                color: white; 
+                border-radius: 5px;
+            """)
+            self.submit_button.clicked.connect(self.register_user)
+
+            layout.addWidget(self.first_name)
+            layout.addWidget(self.last_name)
+            layout.addWidget(self.iin)
+            layout.addWidget(self.phone)
+            layout.addWidget(self.password)
+            layout.addWidget(self.submit_button)
+
+        except Exception as e:
+            logging.error(f"Ошибка при инициализации регистрации: {str(e)}")
+
+    def register_user(self):
+        try:
+            first_name = self.first_name.text()
+            last_name = self.last_name.text()
+            iin = self.iin.text()
+            phone = self.phone.text()
+            password = self.password.text()
+
+            if not first_name or not last_name or not iin or not phone or not password:
+                QtWidgets.QMessageBox.warning(self, "Ошибка", "Все поля обязательны для заполнения.")
+                return
+
+            # Проверка на уникальность ИИН
+            if self.check_user_exists(iin):
+                QtWidgets.QMessageBox.warning(self, "Ошибка", "Пользователь с таким ИИН уже существует.")
+                return
+
+            # Сохранение данных в таблицу Excel
+            if not os.path.exists(NEW_EXCEL_FILE):
+                wb = Workbook()
+                sheet = wb.active
+                sheet.append(["Имя", "Фамилия", "ИИН", "Номер телефона", "Пароль"])
+            else:
+                wb = load_workbook(NEW_EXCEL_FILE)
+                sheet = wb.active
+
+            sheet.append([first_name, last_name, iin, phone, password])
+            wb.save(NEW_EXCEL_FILE)
+
+            QtWidgets.QMessageBox.information(self, "Успех", "Вы успешно зарегистрированы!")
+            self.close()
+
+            # Переход в окно входа
+            self.login_app = LoginApp()
+            self.login_app.show()
+        except Exception as e:
+            logging.error(f"Ошибка при регистрации: {str(e)}")
+
+
+    def check_user_exists(self, iin):
+        try:
+            if not os.path.exists(NEW_EXCEL_FILE):
+                return False
+            wb = load_workbook(NEW_EXCEL_FILE)
+            sheet = wb.active
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                if row[2] == iin:  # ИИН в 3-м столбце
+                    return True
+            return False
+        except Exception as e:
+            logging.error(f"Ошибка при проверке существования пользователя: {str(e)}")
+            return False
+
+    def check_password(self, iin, password):
+        try:
+            if not os.path.exists(NEW_EXCEL_FILE):
+                return False
+            wb = load_workbook(NEW_EXCEL_FILE)
+            sheet = wb.active
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                if row[2] == iin and row[4] == password:  # ИИН в 3-м столбце, пароль в 5-м
+                    return True
+            return False
+        except Exception as e:
+            logging.error(f"Ошибка при проверке пароля пользователя: {str(e)}")
+            return False
+
+
+
+""" class MainWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Главное окно")
+        self.setGeometry(100, 100, 800, 600)
+        self.initUI()
+
+    def initUI(self):
+        try:
+            label = QtWidgets.QLabel("Главное окно", self)
+            label.setAlignment(QtCore.Qt.AlignCenter)
+            label.setStyleSheet("font-size: 24px; color: #4CAF50;")
+            self.setCentralWidget(label)
+        except Exception as e:
+            logging.error(f"Ошибка в главном окне: {str(e)}")
+ """
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication(sys.argv)
+    splash = SplashScreen()
+    splash.show()
+    sys.exit(app.exec_())
