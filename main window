@@ -1,0 +1,186 @@
+import sys
+from PyQt5.QtWidgets import QApplication, QLayout, QMainWindow, QVBoxLayout, QWidget, QLabel, QPushButton, QHBoxLayout, QInputDialog
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap
+from kabinetcode import UserDashboard  # Импортируем класс PatientDashboard
+from doctorscode import AppointmentWindow
+from body import MedicalImageClassifier  # Импортируем окно диагностики
+from settings import SettingsWindow
+
+class MainWindow(QMainWindow):
+    def __init__(self, user_role):
+        super().__init__()
+        self.user_role = user_role  # Роль пользователя ('user' или 'admin')
+        self.setWindowTitle(" Main Window")
+        self.setGeometry(100, 100, 1000, 600)
+        self.init_ui()
+
+    def init_ui(self):
+        central_widget = QWidget()
+        main_layout = QHBoxLayout()
+
+        left_panel = QWidget()
+        left_panel.setStyleSheet("background-color: #4CAF50;")
+        left_panel.setFixedWidth(250)
+
+        left_layout = QVBoxLayout()
+        image_label_left = QLabel()
+        self.set_image_left(image_label_left)
+        image_label_left.setAlignment(Qt.AlignCenter)
+        image_label_left.setStyleSheet("margin-top: 20px;")
+
+        self.call_log_button = QPushButton("Diagnostics")
+        self.medications_button = QPushButton("Doctors")  # Переименовали в "Доктора"
+        self.sick_leaves_button = QPushButton("Settings")
+
+        # Применим общий стиль ко всем кнопкам
+        buttons = [self.medications_button, self.call_log_button, self.sick_leaves_button]
+        for button in buttons:
+            button.setStyleSheet("background-color: white; color: #333333; font-size: 18px; padding: 10px; margin-top: 10px; border: 1px solid #333333;")
+            button.clicked.connect(self.on_section_click)
+
+        # Добавим обработчик для кнопки "Доктора"
+        self.medications_button.clicked.connect(self.open_doctors_window)
+        self.call_log_button.clicked.connect(self.open_diagnostic_window)
+        self.sick_leaves_button.clicked.connect(self.open_settings_window)  # Open settings window
+
+        left_layout.addWidget(image_label_left)
+        for button in buttons:
+            left_layout.addWidget(button)
+
+        # Если пользователь администратор, добавим кнопку "Администрация"
+        if self.user_role == 'admin':
+            self.admin_button = QPushButton("Администрация")
+            self.admin_button.setStyleSheet("background-color: white; color: #333333; font-size: 18px; padding: 10px; margin-top: 10px; border: 1px solid #333333;")
+            self.admin_button.clicked.connect(self.open_admin_panel)
+            left_layout.addWidget(self.admin_button)
+
+        left_panel.setLayout(left_layout)
+
+        right_panel = QWidget()
+        right_layout = QVBoxLayout()
+
+        # Ссылка "Выйти" в правом верхнем углу
+        self.logout_label = QLabel('<a href="exit">Выйти</a>')
+        self.logout_label.setOpenExternalLinks(True)
+        self.logout_label.setStyleSheet("font-size: 16px; color: #1e90ff;")
+        self.logout_label.linkActivated.connect(self.logout_user)
+
+        title_label = QLabel("Welcome to the Clinic Management System")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("font-size: 30px; font-weight: bold; padding: 20px;")
+
+        image_label = QLabel()
+        self.set_image(image_label)
+        image_label.setAlignment(Qt.AlignCenter)
+        image_label.setStyleSheet("margin-top: 20px;")
+
+        right_layout.addWidget(self.logout_label)
+        right_layout.addWidget(title_label)
+        right_layout.addWidget(image_label)
+
+        right_panel.setLayout(right_layout)
+
+        main_layout.addWidget(left_panel)
+        main_layout.addWidget(right_panel)
+
+        central_widget.setLayout(main_layout)
+        self.setCentralWidget(central_widget)
+
+        # Добавляем кнопку для перехода в Личный кабинет для пользователей
+        if self.user_role == 'user':
+            self.cabinet_button = QPushButton("Личный кабинет")
+            self.cabinet_button.setStyleSheet("background-color: white; color: #333333; font-size: 18px; padding: 10px; margin-top: 10px; border: 1px solid #333333;")
+            self.cabinet_button.clicked.connect(self.open_cabinet_window)
+            left_layout.addWidget(self.cabinet_button)
+
+    def open_doctors_window(self):
+        # Передаем ссылку на главное окно
+        self.doctors_window = AppointmentWindow(self, self)
+        self.doctors_window.show()  # Показываем окно с врачами
+        self.hide()  # Скрываем текущее окно, чтобы не закрывать его полностью
+
+    def open_diagnostic_window(self):
+        try:
+            # Создаем окно диагностики как отдельное окно
+            self.diagnostic_window = MedicalImageClassifier()  # Окно диагностики открывается отдельно
+            self.diagnostic_window.show()  # Показываем окно диагностики
+        except Exception as e:
+            logging.error(f"Ошибка при открытии окна диагностики: {str(e)}")
+
+
+    def open_settings_window(self):
+        # Открытие окна настроек
+        self.settings_window = SettingsWindow(self)  # Передаем ссылку на главное окно
+        self.settings_window.show()
+        self.hide()  # Скрываем текущее окно
+
+    def open_cabinet_window(self):
+        try:
+            # Запрашиваем ИИН у пользователя
+            patient_iin, ok = QInputDialog.getText(self, "Enter your IIN", "Enter your IIN:")
+            if ok and patient_iin:
+                # Открываем Личный кабинет с переданным ИИН
+                self.cabinet_window = UserDashboard(patient_iin, self)  # Передаём ИИН и главное окно
+                self.cabinet_window.show()
+                self.close()  # Скрываем главное окно
+            else:
+                self.show_message("Error: The IIN was not entered.")
+        except Exception as e:
+            print(f"Error when opening a personal account: {e}")
+            self.show_message(f"Error: {e}")
+
+    def on_section_click(self):
+        clicked_button = self.sender()
+        section_name = clicked_button.text()
+        self.show_message(f"The section is open: {section_name}")
+
+    def show_message(self, message):
+        msg_window = QWidget()
+        msg_window.setWindowTitle("Information")
+        msg_window.setGeometry(200, 200, 400, 200)
+
+        layout = QVBoxLayout()
+        msg_label = QLabel(message)
+        msg_label.setAlignment(Qt.AlignCenter)
+        msg_label.setStyleSheet("font-size: 16px;")
+
+        layout.addWidget(msg_label)
+        msg_window.setLayout(layout)
+        msg_window.show()
+
+    def return_to_main_window(self):
+        if self.main_window:  # Проверяем, что main_window не пустое
+            self.main_window.show()  # Показываем главное окно
+        self.close()  # Закрываем текущее окно
+
+    def set_image_left(self, image_label):
+        image_path = "pic2.png"
+        pixmap = QPixmap(image_path)
+        image_label.setPixmap(pixmap.scaled(200, 200, Qt.KeepAspectRatio))
+
+    def set_image(self, image_label):
+        image_path = "pic4.png"
+        pixmap = QPixmap(image_path)
+        image_label.setPixmap(pixmap.scaled(450, 450, Qt.KeepAspectRatio))
+
+    def logout_user(self):
+        self.close()
+        self.show_login_window()
+
+    def show_login_window(self):
+        from login_app import LoginApp  # type: ignore
+        self.login_window = LoginApp()
+        self.login_window.show()
+
+    def open_admin_panel(self):
+        from adminp import AdminWindow  # Открываем административную панель
+        self.admin_panel = AdminWindow()
+        self.admin_panel.show()
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    user_role = 'user'  # Пример: пользователь зашел как 'user'
+    window = MainWindow(user_role)  # Передаем роль пользователя
+    window.show()
+    sys.exit(app.exec_())
