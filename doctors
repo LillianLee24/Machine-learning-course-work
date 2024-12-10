@@ -1,0 +1,151 @@
+import sys
+import pandas as pd
+from PyQt5 import QtWidgets, QtGui
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import QMessageBox, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget, QFrame, QScrollArea, QDialog
+
+# Path to the Excel file with doctor schedules
+EXCEL_FILE = 'schedul.xlsx'
+
+# Data about doctors (Full Name, Position, Experience, Date of Birth, Photo)
+doctors_data = [
+    ('Mekenbaeva Rakhima Tastanovna', 'Cardiologist', 12, '1982-05-14', 'picd1.png'),
+    ('Rutjanov Ilyas Rutjanovich', 'Oncologist Surgeon', 10, '1985-07-23', 'picd2.png'),
+    ('Karabalaev Nyshan Amirkulovich', 'Endoscopist', 8, '1986-09-11', 'picd3.png'),
+    ('Mirmanova Guljan Zhantemirovna', 'Mammologist', 6, '1990-02-28', 'picd4.png'),
+    ('Samigatova Pakizat Mukashevna', 'Ultrasound Specialist', 14, '1979-03-18', 'picd5.png'),
+    ('Dzhandusova Zhanna Erbakramovna', 'Obstetrician-Gynecologist', 11, '1983-10-06', 'picd6.png'),
+    ('Ivanova Altyn Aidarovna', 'Therapist', 9, '1984-11-22', 'picd7.png'),
+    ('Alieva Zhanar Mukhtarovna', 'Pediatrician', 7, '1988-04-03', 'picd8.png'),
+    ('Sharipova Balzhan Maratbekovna', 'Neurologist', 13, '1980-06-10', 'picd9.png'),
+    ('Tleubaeva Zarina Abishevna', 'Rheumatologist', 15, '1977-01-15', 'picd10.png'),
+    ('Nursadykova Roza Abdulovna', 'ENT Specialist', 11, '1982-09-02', 'picd11.png'),
+    ('Tomanov Baurzhan Temirgalievich', 'Surgeon', 14, '1979-05-30', 'picd12.png'),
+    ('Kasymova Zhadira Mukhamedzhannovna', 'Gynecologist', 12, '1983-03-25', 'picd13.png'),
+    ('Zhumashev Zhanbolat Ermekovich', 'Urologist', 10, '1984-12-18', 'picd14.png'),
+    ('Satibaldinova Botagoz Zhandossovna', 'Endocrinologist', 6, '1989-07-06', 'picd15.png'),
+    ('Alpysbaeva Aizhan Rakhimovna', 'Oncologist Surgeon', 9, '1985-01-15', 'picd16.png'),
+    ('Nurgalieva Ainur Nurlanovna', 'Ophthalmologist', 8, '1987-11-05', 'picd17.png'),
+    ('Tasbulatov Daniyar Abduallaevich', 'Mammologist', 11, '1982-10-23', 'picd18.png'),
+    ('Sembaeva Gulnara Shakhmanovna', 'Phthisiatrist', 12, '1980-08-11', 'picd19.png'),
+    ('Abdrahmanova Saltanat Talgatovna', 'Traumatologist', 7, '1986-03-13', 'picd20.png'),
+    ('Kalieva Aziza Amanzholovna', 'Speech Therapist', 10, '1983-05-30', 'picd21.png'),
+    ('Rakhimova Marzhan Sharipovna', 'Psychologist', 9, '1984-09-18', 'picd22.png'),
+    ('Tokzhanova Sholpan Nurlanovna', 'Neurologist', 13, '1977-12-22', 'picd23.png'),
+    ('Sarsembayeva Assem Zhanatovna', 'Pediatrician', 5, '1990-02-08', 'picd24.png'),
+    ('Zhanbolatova Madina Abdikalievna', 'Obstetrician-Gynecologist', 8, '1986-07-19', 'picd25.png')
+]
+
+class AppointmentWindow(QDialog):
+    def __init__(self, parent=None, main_window=None):  # Accepting main_window as an argument
+        super().__init__(parent)  # Passing parent window
+        self.main_window = main_window 
+        self.setWindowTitle("List of Doctors")
+        self.setGeometry(100, 100, 800, 600)
+
+        layout = QVBoxLayout()
+
+        # Header
+        header_label = QLabel("List of Doctors")
+        header_label.setAlignment(Qt.AlignCenter)
+        header_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        layout.addWidget(header_label)
+
+        # Creating scrollable area
+        scroll_area = QScrollArea()
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout()
+
+        # List of doctors
+        for doctor in doctors_data:
+            doctor_frame = QFrame()
+            doctor_frame.setFrameShape(QFrame.StyledPanel)
+            doctor_layout = QHBoxLayout()
+
+            # Doctor's photo
+            try:
+                pixmap = QPixmap(doctor[4])
+                pixmap = pixmap.scaled(150, 200, Qt.KeepAspectRatio)
+                photo_label = QLabel()
+                photo_label.setPixmap(pixmap)
+            except:
+                photo_label = QLabel("No photo")
+            doctor_layout.addWidget(photo_label)
+
+            # Doctor information
+            info_label = QLabel(f"{doctor[0]}\n{doctor[1]}\nExperience: {doctor[2]} years\nDate of Birth: {doctor[3]}")
+            info_label.setWordWrap(True)
+            doctor_layout.addWidget(info_label)
+
+            # Button to make an appointment
+            book_button = QPushButton("Make an Appointment")
+            book_button.clicked.connect(lambda _, doctor=doctor: self.create_appointment_window(doctor))
+            doctor_layout.addWidget(book_button)
+
+            doctor_frame.setLayout(doctor_layout)
+            scroll_layout.addWidget(doctor_frame)
+
+        scroll_widget.setLayout(scroll_layout)
+        scroll_area.setWidget(scroll_widget)
+
+        layout.addWidget(scroll_area)
+
+        # Back button
+        back_button = QPushButton("← Back")
+        back_button.setStyleSheet("""
+            background-color: transparent;
+            color: #4CAF50;
+            border: none;
+            font-size: 14px;
+        """)
+        back_button.clicked.connect(self.return_to_main_window) # Method to return to the main window
+        layout.addWidget(back_button)
+
+        self.setLayout(layout)
+
+    def return_to_main_window(self):
+        if self.main_window:  # Check if main_window is not empty
+            self.main_window.show()  # Show the main window
+        self.close() 
+
+    def create_appointment_window(self, doctor):
+        # Create and open the appointment window
+        doctor_name = doctor[0]  # Doctor's name
+        appointment_window = AppointmentWindow(self)  # Pass parent window
+        appointment_window.setWindowTitle(f"Appointment with {doctor_name}")
+        appointment_window.exec_()
+
+    def load_doctor_schedule(self, doctor_name):
+        try:
+            # Load schedule from Excel
+            schedule_df = pd.read_excel(EXCEL_FILE)
+
+            # Filter data by doctor
+            doctor_schedule = schedule_df[schedule_df['doctor_name'] == doctor_name]
+            return doctor_schedule
+        except FileNotFoundError:
+            QMessageBox.warning(self, "Error", f"Schedule file not found: {EXCEL_FILE}")
+            return pd.DataFrame()
+
+    def save_appointment_to_excel(self, doctor_name, appointment_date):
+        try:
+            schedule_df = pd.read_excel(EXCEL_FILE)
+        except FileNotFoundError:
+            schedule_df = pd.DataFrame(columns=["doctor_name", "appointment_date"])
+
+        # Add new entry
+        new_appointment = {"doctor_name": doctor_name, "appointment_date": appointment_date}
+        schedule_df = schedule_df.append(new_appointment, ignore_index=True)
+
+        # Save changes to the file
+        schedule_df.to_excel(EXCEL_FILE, index=False)
+
+def main():
+    app = QtWidgets.QApplication(sys.argv)
+    main_window = AppointmentWindow()
+    main_window.show()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
