@@ -1,0 +1,19 @@
+import matplotlib.pyplot as plt
+
+categories = ['Glioma', 'Meningioma', 'Pituitary', 'Healthy']
+class_counts = [500, 450, 350, 600]  
+
+plt.figure(figsize=(8, 6))
+bars = plt.bar(categories, class_counts, color=['#FF5733', '#33FF57', '#3357FF', '#F1C40F'])
+
+plt.xlabel('Categories', fontsize=14, weight='bold', color='darkblue')
+plt.ylabel('Number of Images', fontsize=14, weight='bold', color='darkblue')
+plt.title('Distribution of Categories in the Dataset', fontsize=16, weight='bold', color='darkgreen')
+
+for bar in bars:
+    yval = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 20, str(yval), ha='center', fontsize=12, color='black', fontweight='bold')
+
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+plt.show()
